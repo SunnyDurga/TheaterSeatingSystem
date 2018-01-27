@@ -1,0 +1,160 @@
+
+import java.io.*;
+import java.util.*;
+
+public class TheatreSeatAssignment {
+
+	static int totalNumberOfSeats = 0;
+	static int totalNumberOfRows = 0;
+
+	public static void main(String[] args) throws Exception {
+
+		System.out.println("Please insert theater layout and when you are done type DONE. Example \n2 4 5 \n3 4 5");
+		BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+		String line;
+		int row = 1;
+		HashMap<String, Integer> ticketReq = new LinkedHashMap<String, Integer>(); // Map to store the incoming ticket																			// requests.
+		HashMap<String, Integer> theater = new LinkedHashMap<String, Integer>(); // Map to store the layout of the
+																					// theater.
+
+		while ((line = stdin.readLine()) != null && line.length() != 0) {
+			String name = line;
+			if (name.contains("DONE")|| name.matches("[a-zA-Z]+")) {
+				break; // checking for the empty which differentiates the ticket request and the		
+			}
+			// Adding the theater layout to theatreLayout map in (row1 section1,
+			// numberOfSeats) form.
+			String[] parts = name.split(" ");
+			for (int k = 0; k < parts.length; k++) {
+				String key = "Row " + Integer.toString(row) + " Section " + Integer.toString((k + 1));
+				totalNumberOfSeats += Integer.parseInt(parts[k]);
+				totalNumberOfRows++;
+				theater.put(key, Integer.parseInt(parts[k]));
+			}
+			row++;
+		}
+		System.out.println("Please insert ticket requests and when you are done type DONE. Example \nSmith 2 \nJohn 2");
+		BufferedReader stdin2 = new BufferedReader(new InputStreamReader(System.in));
+		String line2;
+		while ((line2 = stdin2.readLine()) != null && line2.length() != 0) {
+			String name = line2;
+			if (name.equals("DONE") ) {
+				break;
+			}
+			String[] parts = name.split(" ");
+			if(parts.length >1){
+			String key = parts[0];
+			int value = Integer.parseInt(parts[1]);
+			ticketReq.put(key, value);
+			} else {
+				break;
+			}
+		}
+		if (ticketReq.size() > 0 && theater.size() > 0) {
+			seatReservation(ticketReq, theater);
+		} else {
+			System.out.println(
+					"Please follow the input format of theater layout followed by ticket requests and try again.Example:");
+			System.out.println("2 4 5 \n3 4 5 \n<emptyspace> \nSmith 2 \nJohn 2");
+		}
+	}
+
+	private static void seatReservation(HashMap<String, Integer> ticketReq, HashMap<String, Integer> theatre) {
+		HashMap<String, String> availableSeats = new LinkedHashMap<String, String>();
+		Iterator ticketReqIterator = ticketReq.entrySet().iterator();
+
+		while (ticketReqIterator.hasNext()) {
+			boolean bigParty = true;
+			Map.Entry pair = (Map.Entry) ticketReqIterator.next();
+			String personRequest = (String) pair.getKey();
+			int reqSeats = (int) pair.getValue();
+
+			if (totalNumberOfSeats < reqSeats) {
+				bigParty = false;
+				System.out.println(personRequest + " Sorry, we can't handle your party.");// Request is more than the
+																							// available seats.
+			}
+
+			if (totalNumberOfSeats > reqSeats) {
+				Iterator availableSeatsIterator = theatre.entrySet().iterator();
+
+				while (availableSeatsIterator.hasNext()) {
+					Map.Entry availability = (Map.Entry) availableSeatsIterator.next();
+					String availableRows = (String) availability.getKey();
+					int numberOfSeatsAvailable = (int) availability.getValue();
+
+					if (numberOfSeatsAvailable == reqSeats) {
+						availableSeats.put(availableRows, "equal"); // Add the section with equal number of seats as
+																	// requested number of seats.
+						bigParty = false;
+						break;
+					} else if (numberOfSeatsAvailable > reqSeats) {
+						availableSeats.put(availableRows, "not equal"); // Add the section with more number of seats
+																		// than requested number of seats.
+						bigParty = false;
+					}
+
+				}
+
+				if (bigParty) { // If the requested seats are available but not in the same section.
+					System.out.println(personRequest + " Call to split party.");
+					continue;
+				} else {
+					String seatSelected = optimizedSeatSelection(availableSeats); // Call to select the section of seats
+																					// which is suitable to the request.
+					int currentlyVacantSeats = theatre.get(seatSelected);
+					currentlyVacantSeats = currentlyVacantSeats - reqSeats;
+					totalNumberOfSeats = totalNumberOfSeats - reqSeats;
+					availableSeats.clear();
+					theatre.put(seatSelected, currentlyVacantSeats);
+					System.out.println(personRequest + " is " + seatSelected);
+				}
+			}
+		}
+	}
+
+	private static String optimizedSeatSelection(HashMap<String, String> availableSeats) {
+		// In this method we compare the sections with exact number of requested and the
+		// sections which are large for the current request.
+		// Then if we find that the sections with exact number of seats is closer to the
+		// screen then we alot it.
+		// If the section with more seats than requested is closer to the screen
+		// compared to the section with equal number of vacant seats
+		// then we will alot the section which is closer to the screen.
+
+		Iterator it = availableSeats.entrySet().iterator();
+		String firstAvailableSeat = "";
+		String nextAvailableSeats = "";
+
+		while (it.hasNext()) {
+			Map.Entry pair = (Map.Entry) it.next();
+			String eq = (String) pair.getValue();
+			if (firstAvailableSeat.equals("")) {
+				firstAvailableSeat = (String) pair.getKey(); // Assign the first vacant seat.
+			} else if (!(firstAvailableSeat.equals("")) && eq.equals("equal") && nextAvailableSeats.equals("")) {
+				nextAvailableSeats = (String) pair.getKey(); // Assign the next available seat.
+			}
+		}
+
+		if (nextAvailableSeats.equals("")) {
+			return firstAvailableSeat; // If it the only vacant section for the request.
+		} else {
+			String[] parts1 = firstAvailableSeat.split(" ");
+			int firstAvailableRow = Integer.parseInt(parts1[1]);
+			String[] parts2 = nextAvailableSeats.split(" ");
+			int nextAvailableRow = Integer.parseInt(parts2[1]);
+			int diff = nextAvailableRow - firstAvailableRow;
+			if (diff == 0) {
+				return firstAvailableSeat;
+			} else if (diff == 1) {// If the difference is just one then alot the section with exactly the same
+									// number of seats.
+				return nextAvailableSeats;
+			} else if (diff >= 2) { // If the difference is more than two rows then alot the section closer to the
+									// screen
+				return firstAvailableSeat;
+			}
+
+		}
+		return firstAvailableSeat;
+	}
+}
